@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voxel Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script type="module" src="main.js"></script>
+</body>
+</html>import * as THREE from 'https://cdn.skypack.dev/three';
+
+const scene = new THREE.Scene();
+
+// Camera (FOV, aspect ratio, near, far)
+const camera = new THREE.PerspectiveCamera(
+  75, 
+  window.innerWidth / window.innerHeight, 
+  0.1, 
+  1000
+);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Cube block
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const cube = new THREE.Mesh(geometry, material);
+scene.add(cube);
+
+// Position camera
+camera.position.z = 5;
+
+// Animate loop
+function animate() {
+  requestAnimationFrame(animate);
+  cube.rotation.y += 0.01;
+  renderer.render(scene, camera);
+}
+
+animate();// Remove previous cube code — we're replacing it with a chunk
+const chunkSize = 16;
+const blockSize = 1;
+
+const blockGeometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x8BC34A }); // grass green
+
+for (let x = 0; x < chunkSize; x++) {
+  for (let z = 0; z < chunkSize; z++) {
+    const block = new THREE.Mesh(blockGeometry, blockMaterial);
+    block.position.set(x * blockSize, 0, z * blockSize);
+    scene.add(block);
+  }
+}import * as THREE from 'https://cdn.skypack.dev/three';
+
+const scene = new THREE.Scene();
+
+// Camera
+const camera = new THREE.PerspectiveCamera(
+  75, 
+  window.innerWidth / window.innerHeight, 
+  0.1, 
+  1000
+);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// === Add a chunk of blocks ===
+const chunkSize = 16;
+const blockSize = 1;
+
+const blockGeometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x8BC34A });
+
+for (let x = 0; x < chunkSize; x++) {
+  for (let z = 0; z < chunkSize; z++) {
+    const block = new THREE.Mesh(blockGeometry, blockMaterial);
+    block.position.set(x * blockSize, 0, z * blockSize);
+    scene.add(block);
+  }
+}
+
+// Position camera to see the chunk
+camera.position.set(chunkSize / 2, 10, chunkSize * 1.5);
+camera.lookAt(chunkSize / 2, 0, chunkSize / 2);
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+animate();// Track pressed keys
+const keys = {};
+
+window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);function animate() {
+  requestAnimationFrame(animate);
+
+  const speed = 0.1;
+
+  // Forward/backward
+  if (keys['w']) camera.position.z -= speed;
+  if (keys['s']) camera.position.z += speed;
+
+  // Left/right
+  if (keys['a']) camera.position.x -= speed;
+  if (keys['d']) camera.position.x += speed;
+
+  // Up/down (flying mode)
+  if (keys[' ']) camera.position.y += speed;
+  if (keys['shift']) camera.position.y -= speed;
+
+  renderer.render(scene, camera);
+}<body>
+  <div id="instructions" style="
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-family: sans-serif;
+    font-size: 24px;
+  ">
+    Click to play
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+const instructions = document.getElementById('instructions');
+
+// Pointer lock setup
+document.body.addEventListener('click', () => {
+  document.body.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement === document.body) {
+    instructions.style.display = 'none';
+  } else {
+    instructions.style.display = 'block';
+  }
+});
+
+// Camera rotation values
+let yaw = 0;
+let pitch = 0;
+
+// Mouse move handler
+document.addEventListener('mousemove', (event) => {
+  if (document.pointerLockElement === document.body) {
+    yaw -= event.movementX * 0.002;
+    pitch -= event.movementY * 0.002;
+    pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+    camera.rotation.order = 'YXZ'; // correct rotation order
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+  }
+});
+🔁 3. Update camera movement (in animate)
+Instead of moving on fixed X/Z axes, we move relative to the camera’s direction:
+
+Replace the movement part of your animate() function with this:
+
+js
+Copy
+Edit
+const speed = 0.1;
+
+const forward = new THREE.Vector3();
+camera.getWorldDirection(forward);
+forward.y = 0;
+forward.normalize();
+
+const right = new THREE.Vector3();
+right.crossVectors(forward, camera.up).normalize();
+
+if (keys['w']) camera.position.addScaledVector(forward, speed);
+if (keys['s']) camera.position.addScaledVector(forward, -speed);
+if (keys['a']) camera.position.addScaledVector(right, -speed);
+if (keys['d']) camera.position.addScaledVector(right, speed);
+if (keys[' ']) camera.position.y += speed;
+if (keys['shift']) camera.position.y -= speed;const textureLoader = new THREE.TextureLoader();
+const grassTexture = textureLoader.load('grass.png');
+grassTexture.magFilter = THREE.NearestFilter; // pixelated look
+grassTexture.minFilter = THREE.NearestFilter;
+const blockMaterial = new THREE.MeshBasicMaterial({ color: 0x8BC34A });const blockMaterial = new THREE.MeshBasicMaterial({ map: grassTexture });// Store blocks in a list for interaction
+const blocks = [];
+
+for (let x = 0; x < chunkSize; x++) {
+  for (let z = 0; z < chunkSize; z++) {
+    const block = new THREE.Mesh(blockGeometry, blockMaterial);
+    block.position.set(x * blockSize, 0, z * blockSize);
+    block.userData = { isBlock: true }; // tag it
+    scene.add(block);
+    blocks.push(block);
+  }
+}const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();function getTargetedBlock() {
+  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  const intersects = raycaster.intersectObjects(blocks);
+  return intersects.length > 0 ? intersects[0] : null;
+}
+document.addEventListener('mousedown', (event) => {
+  const hit = getTargetedBlock();
+  if (!hit) return;
+
+  if (event.button === 0) {
+    // Left click: Break block
+    scene.remove(hit.object);
+    blocks.splice(blocks.indexOf(hit.object), 1);
+  }
+
+  if (event.button === 2) {
+    // Right click: Place new block
+    const normal = hit.face.normal.clone();
+    const newPos = hit.point.clone().add(normal.multiplyScalar(0.5)).floor().addScalar(0.5);
+    
+    const newBlock = new THREE.Mesh(blockGeometry, blockMaterial);
+    newBlock.position.copy(newPos);
+    newBlock.userData = { isBlock: true };
+    scene.add(newBlock);
+    blocks.push(newBlock);
+  }
+});window.addEventListener('contextmenu', e => e.preventDefault());import SimplexNoise from 'https://cdn.skypack.dev/simplex-noise';
+const noise = new SimplexNoise();const blocks = [];
+const terrainScale = 0.1;
+const maxHeight = 6;
+
+for (let x = 0; x < chunkSize; x++) {
+  for (let z = 0; z < chunkSize; z++) {
+    const nx = x * terrainScale;
+    const nz = z * terrainScale;
+    const height = Math.floor((noise.noise2D(nx, nz) + 1) / 2 * maxHeight);
+
+    for (let y = 0; y <= height; y++) {
+      const block = new THREE.Mesh(blockGeometry, blockMaterial);
+      block.position.set(x, y, z);
+      block.userData = { isBlock: true };
+      scene.add(block);
+      blocks.push(block);
+    }
+  }
+}const blockMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 }); // green
+
+function getColorByHeight(y) {
+  if (y > 4) return 0xdddddd; // snow
+  if (y > 2) return 0x228B22; // grass
+  return 0x8B4513; // dirt
+}const material = new THREE.MeshLambertMaterial({ color: getColorByHeight(y) });
+const block = new THREE.Mesh(blockGeometry, material);
+const CHUNK_SIZE = 16;
+const CHUNK_HEIGHT = 12;
+const terrainScale = 0.1;
+const maxHeight = CHUNK_HEIGHT - 1;
+const loadedChunks = new Map(); // key = "x,z"
+function generateChunk(cx, cz) {
+  const chunkKey = `${cx},${cz}`;
+  if (loadedChunks.has(chunkKey)) return; // already loaded
+
+  const blocks = [];
+
+  for (let x = 0; x < CHUNK_SIZE; x++) {
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      const worldX = cx * CHUNK_SIZE + x;
+      const worldZ = cz * CHUNK_SIZE + z;
+
+      const nx = worldX * terrainScale;
+      const nz = worldZ * terrainScale;
+      const height = Math.floor((noise.noise2D(nx, nz) + 1) / 2 * maxHeight);
+
+      for (let y = 0; y <= height; y++) {
+        const block = new THREE.Mesh(blockGeometry, blockMaterial);
+        block.position.set(worldX, y, worldZ);
+        block.userData = { isBlock: true };
+        scene.add(block);
+        blocks.push(block);
+      }
+    }
+  }
+
+  loadedChunks.set(chunkKey, blocks);
+}const chunkRadius = 2; // load 5x5 chunks around player
+const px = Math.floor(camera.position.x / CHUNK_SIZE);
+const pz = Math.floor(camera.position.z / CHUNK_SIZE);
+
+for (let dx = -chunkRadius; dx <= chunkRadius; dx++) {
+  for (let dz = -chunkRadius; dz <= chunkRadius; dz++) {
+    generateChunk(px + dx, pz + dz);
+}
+}
+const player = {
+  position: camera.position.clone(),
+  velocity: new THREE.Vector3(),
+  isOnGround: false,
+  height: 1.8,
+  radius: 0.3
+};
+
+const gravity = -0.015;
+const jumpForce = 0.4;function isBlockAt(x, y, z) {
+  for (let chunk of loadedChunks.values()) {
+    for (let block of chunk) {
+      const bp = block.position;
+      if (
+        Math.floor(bp.x) === Math.floor(x) &&
+        Math.floor(bp.y) === Math.floor(y) &&
+        Math.floor(bp.z) === Math.floor(z)
+      ) return true;
+    }
+  }
+  return false;
+}
+const moveDir = new THREE.Vector3();
+const speed = 0.1;
+
+const forward = new THREE.Vector3();
+camera.getWorldDirection(forward);
+forward.y = 0;
+forward.normalize();
+
+const right = new THREE.Vector3();
+right.crossVectors(forward, camera.up).normalize();
+
+if (keys['w']) moveDir.add(forward);
+if (keys['s']) moveDir.add(forward.clone().negate());
+if (keys['a']) moveDir.add(right.clone().negate());
+if (keys['d']) moveDir.add(right);
+
+moveDir.normalize().multiplyScalar(speed);
+
+// Apply horizontal movement
+player.position.add(moveDir);
+
+// Apply gravity
+player.velocity.y += gravity;
+player.position.y += player.velocity.y;
+
+// Ground collision
+const footY = Math.floor(player.position.y - player.height / 2 - 0.1);
+const headY = Math.floor(player.position.y + player.height / 2);
+
+const px = Math.floor(player.position.x);
+const pz = Math.floor(player.position.z);
+
+player.isOnGround = false;
+
+if (isBlockAt(px, footY, pz)) {
+  player.isOnGround = true;
+  player.velocity.y = 0;
+  player.position.y = footY + 1 + player.height / 2;
+}
+
+if (isBlockAt(px, headY, pz)) {
+  player.velocity.y = Math.min(player.velocity.y, 0);
+}
+
+// Update camera to follow player
+camera.position.copy(player.position);
+<div id="hotbar" style="
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  font-family: monospace;
+  user-select: none;
+  color: white;
+">
+  <div class="slot selected" data-block="grass" style="padding: 10px; border: 2px solid white;">1: Grass</div>
+  <div class="slot" data-block="dirt" style="padding: 10px; border: 2px solid transparent;">2: Dirt</div>
+  <div class="slot" data-block="stone" style="padding: 10px; border: 2px solid transparent;">3: Stone</div>
+  <div class="slot" data-block="wood" style="padding: 10px; border: 2px solid transparent;">4: Wood</div>
+</div>const textures = {
+  grass: textureLoader.load('grass.png'),
+  dirt: textureLoader.load('dirt.png'),
+  stone: textureLoader.load('stone.png'),
+  wood: textureLoader.load('wood.png'),
+};
+
+// Apply nearest filter for pixelated style
+for (const key in textures) {
+  textures[key].magFilter = THREE.NearestFilter;
+  textures[key].minFilter = THREE.NearestFilter;
+}const materials = {};
+for (const key in textures) {
+  materials[key] = new THREE.MeshBasicMaterial({ map: textures[key] });
+}let selectedBlock = 'grass';window.addEventListener('keydown', (e) => {
+  if (e.key >= '1' && e.key <= '4') {
+    const index = parseInt(e.key) - 1;
+    const slots = document.querySelectorAll('#hotbar .slot');
+    slots.forEach((slot, i) => {
+      slot.style.borderColor = i === index ? 'white' : 'transparent';
+    });
+    selectedBlock = slots[index].dataset.block;
+  }
+});const newBlock = new THREE.Mesh(blockGeometry, blockMaterial);const newBlock = new THREE.Mesh(blockGeometry, materials[selectedBlock]);const chunkBlocks = new Array(CHUNK_SIZE);
+for (let x = 0; x < CHUNK_SIZE; x++) {
+  chunkBlocks[x] = new Array(CHUNK_SIZE);
+  for (let y = 0; y < CHUNK_HEIGHT; y++) {
+    chunkBlocks[x][y] = new Array(CHUNK_SIZE).fill(null);
+  }
+}chunkBlocks[x][y][z] = "grass"; // or null if no block
+function greedyMesh(blocks) {
+  const vertices = [];
+  const indices = [];
+  const uvs = [];
+  // ... arrays to build geometry
+
+  // Implement greedy merge for each axis and direction
+
+  // For example, X+ face meshing pseudo:
+  for (let y = 0; y < CHUNK_HEIGHT; y++) {
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      let runStart = 0;
+      let runBlockType = null;
+      for (let x = 0; x <= CHUNK_SIZE; x++) {
+        const blockType = (x < CHUNK_SIZE) ? blocks[x][y][z] : null;
+        if (blockType !== runBlockType) {
+          if (runBlockType) {
+            // create a quad from runStart to x-1 for runBlockType
+            // push vertices, indices, uvs accordingly
+          }
+          runStart = x;
+          runBlockType = blockType;
+        }
+      }
+    }
+  }
+  
+  // Repeat for other face directions and axes...
+
+  // Return BufferGeometry from vertices, indices, uvs arrays
+  return new THREE.BufferGeometry(); // filled with data
+}
+const geometry = greedyMesh(chunkBlocks);
+const material = materials['grass']; // or create multi-material for multiple block types
+const mesh = new THREE.Mesh(geometry, material);
+scene.add(mesh);
+
+const modMenu = document.getElementById('modMenu');
+const openModMenuBtn = document.getElementById('openModMenu');
+const closeModMenuBtn = document.getElementById('closeModMenu');
+
+openModMenuBtn.onclick = () => {
+  modMenu.style.display = 'block';
+  openModMenuBtn.style.display = 'none';
+};
+
+closeModMenuBtn.onclick = () => {
+  modMenu.style.display = 'none';
+  openModMenuBtn.style.display = 'block';
+};
+
+// Wireframe toggle
+document.getElementById('toggleWireframe').addEventListener('change', e => {
+  const isWireframe = e.target.checked;
+  scene.traverse(obj => {
+    if (obj.isMesh) {
+      obj.material.wireframe = isWireframe;
+      obj.material.needsUpdate = true;
+    }
+  });
+});
+
+// Gravity toggle
+document.getElementById('toggleGravity').addEventListener('change', e => {
+  gravityEnabled = e.target.checked;
+});
+
+// Chunk Loading toggle
+document.getElementById('toggleChunkLoading').addEventListener('change', e => {
+  chunkLoadingEnabled = e.target.checked;
+});
+let gravityEnabled = true;
+let chunkLoadingEnabled = true;if (gravityEnabled) {
+  player.velocity.y += gravity;
+  player.position.y += player.velocity.y;
+  // collision code...
+}
+if (chunkLoadingEnabled) {
+  // chunk loading loop he
